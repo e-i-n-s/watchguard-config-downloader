@@ -55,7 +55,10 @@ function doLogin(error, response, body) {
 								payloadFileAction = "<methodCall><methodName>/agent/file_action</methodName><params><param><value><struct><member><name>action</name><value><string>config</string></value></member></struct></value></param></params></methodCall>"
 								var optionFileAction = {
 									url: url + '/agent/file_action',
-									body: payloadFileAction
+									body: payloadFileAction,
+									headers: {
+										"X-CSRFToken": csrf
+									}
 								};
 								
 								function downloadConfigFile(error, response, body) {
@@ -64,7 +67,8 @@ function doLogin(error, response, body) {
 									configFile.on('close', function() {
 									  console.log(deviceName + ': ok');
 									});
-									request(url + '/agent/download?action=config&filename=' + deviceName + '.xml.gz').pipe(configFile);
+									var downloadUrl = url + '/agent/download?action=config&filename=' + deviceName + '.xml.gz&csrf_token=' + csrf;	
+									request(downloadUrl).pipe(configFile);						
 								}
 								request.post(optionFileAction, downloadConfigFile);
 							});

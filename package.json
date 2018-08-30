@@ -13,6 +13,7 @@
     "libxmljs": "^0.18.4",
     "request": "^2.79.0",
     "string-search": "^1.2.0",
+    "string-to-stream": "^1.1.1",
     "xml2js": "^0.4.19"
   }
 }
