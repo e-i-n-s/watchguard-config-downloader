@@ -6,4 +6,5 @@
 ## Usage
 
 - Install npm packages: `npm install`
-- Run: `node index.js %hostname% %username% %password%`
+- Create a new user with "status" access.
+- Run: `node index.js %hostname% %username_status% %password%`
