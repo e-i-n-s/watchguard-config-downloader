@@ -13,6 +13,6 @@
     "libxmljs": "^0.18.4",
     "request": "^2.79.0",
     "string-search": "^1.2.0",
-    "xmldoc": "^1.0.0"
+    "xml2js": "^0.4.19"
   }
 }

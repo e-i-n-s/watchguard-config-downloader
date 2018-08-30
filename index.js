@@ -3,8 +3,9 @@ var fs = require('fs');
 var request = require('request');
 var j = request.jar()
 var request = request.defaults({jar: j})
-var xmldoc = require('xmldoc');
 var stringSearcher = require('string-search');
+var parseString = require('xml2js').parseString;
+
 
 if (process.argv.length != 5) {
     throw "Usage: node filename.js hostname username password"
@@ -22,55 +23,60 @@ var options = {
 
 function doLogin(error, response, body) {
     if (!error && response.statusCode == 200) {
-        var document = new xmldoc.XmlDocument(body);
-        var sid = document.valueWithPath("params.param.value.struct.member.value");
-        if (!sid) {
-            throw "Login failed";
-        }
+		
+		parseString(body, function (err, result) {
+			members = result.methodResponse.params[0].param[0].value[0].struct[0].member;
+			var sid = members[0].value[0];
+			var csrf = members[1].value[0];
+			
+			if (!sid || !csrf) {
+				throw "Login failed";
+			}
+						
+			var optionsConfigPage = {
+				url: url + '/auth/login',
+				formData: {
+					"username": user,
+					"password": password,
+					"domain": "Firebox-DB",
+					"sid": sid,
+					"csrf_token": csrf,
+					"privilege": "1",
+					"from_page": "/"
+				}
+			};
 
-        var optionsConfigPage = {
-            url: url + '/auth/login',
-            formData: {
-                "username": user,
-                "password": password,
-                "domain": "Firebox-DB",
-                "sid": sid,
-                "privilege": "2",
-                "from_page": "/"
-            }
-        };
-
-        function getConfigPage(error, response, body) {
-            request(url + '/system/configuration', function(error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    stringSearcher.find(body, 'deviceName = ')
-                        .then(function(resultArr) {
-                            var deviceName = resultArr[0].text.replace('var deviceName = \'', '').replace('\';', '');
-                            console.log('Device Name:' + deviceName);
-                            payloadFileAction = "<methodCall><methodName>/agent/file_action</methodName><params><param><value><struct><member><name>action</name><value><string>config</string></value></member></struct></value></param></params></methodCall>"
-                            var optionFileAction = {
-                                url: url + '/agent/file_action',
-                                body: payloadFileAction
-                            };
-							
-                            function downloadConfigFile(error, response, body) {
-								var fileName = deviceName + '.xml.gz';
-								var configFile = fs.createWriteStream(fileName);
-								configFile.on('close', function() {
-								  console.log('Configfile downloaded!');
-								});
-                                request(url + '/agent/download?action=config&filename=' + deviceName + '.xml.gz').pipe(configFile);
-                            }
-                            request.post(optionFileAction, downloadConfigFile);
-                        });
-
-                } else {
-                    console.error(error)
-                    throw "Error!"
-                }
-            });
-        }
-        request.post(optionsConfigPage, getConfigPage);
+			function getConfigPage(error, response, body) {
+				request(url + '/system/configuration', function(error, response, body) {
+					if (!error && response.statusCode == 200) {
+						stringSearcher.find(body, 'deviceName = ')
+							.then(function(resultArr) {
+								var deviceName = resultArr[0].text.replace('var deviceName = \'', '').replace('\';', '');
+								payloadFileAction = "<methodCall><methodName>/agent/file_action</methodName><params><param><value><struct><member><name>action</name><value><string>config</string></value></member></struct></value></param></params></methodCall>"
+								var optionFileAction = {
+									url: url + '/agent/file_action',
+									body: payloadFileAction
+								};
+								
+								function downloadConfigFile(error, response, body) {
+									var fileName = deviceName + '.xml.gz';
+									var configFile = fs.createWriteStream(fileName);
+									configFile.on('close', function() {
+									  console.log(deviceName + ': ok');
+									});
+									request(url + '/agent/download?action=config&filename=' + deviceName + '.xml.gz').pipe(configFile);
+								}
+								request.post(optionFileAction, downloadConfigFile);
+							});
+					} else {
+						console.error(error)
+						throw "Error!"
+					}
+				});
+			}
+			request.post(optionsConfigPage, getConfigPage);
+		});
+		
     } else {
         console.error(error)
         throw "Error!"
